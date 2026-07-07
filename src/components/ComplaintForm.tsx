@@ -7,9 +7,10 @@ import {
   CANAIS_VENDA,
   TAXONOMIA,
   MOTIVOS,
-  RESOLUCOES
+  RESOLUCOES,
+  mapCanalVendaNexaas
 } from "@/lib/taxonomy";
-import type { PedidoEncontrado } from "@/lib/bigquery";
+import type { PedidoEncontrado, ItemPedido } from "@/lib/bigquery";
 
 interface FormState {
   numeroPedido: string;
@@ -27,6 +28,7 @@ interface FormState {
   submotivo: string;
   descricao: string;
   resolucaoAplicada: string;
+  valorGastoResolucao: string;
   responsavel: string;
 }
 
@@ -46,6 +48,7 @@ const ESTADO_INICIAL: FormState = {
   submotivo: "",
   descricao: "",
   resolucaoAplicada: "",
+  valorGastoResolucao: "",
   responsavel: ""
 };
 
@@ -55,6 +58,9 @@ export function ComplaintForm() {
   const [form, setForm] = useState<FormState>(ESTADO_INICIAL);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [itensPedido, setItensPedido] = useState<ItemPedido[]>([]);
+  const [canalVendaOriginal, setCanalVendaOriginal] = useState<string | null>(null);
+  const [numeroPedidoEhIdNexaas, setNumeroPedidoEhIdNexaas] = useState(false);
 
   const submotivos = useMemo(
     () => (form.motivo ? TAXONOMIA[form.motivo] ?? [] : []),
@@ -62,9 +68,10 @@ export function ComplaintForm() {
   );
 
   function preencherComPedido(pedido: PedidoEncontrado) {
+    const canalMapeado = mapCanalVendaNexaas(pedido.canalVenda);
     setForm((prev) => ({
       ...prev,
-      numeroPedido: pedido.numeroPedido ?? "",
+      numeroPedido: pedido.numeroPedido ?? pedido.idPedidoNexaas ?? "",
       idPedidoNexaas: pedido.idPedidoNexaas ?? "",
       dataPedido: pedido.dataPedido ? pedido.dataPedido.substring(0, 10) : "",
       valorPedido: pedido.valorPedido != null ? String(pedido.valorPedido) : "",
@@ -73,9 +80,12 @@ export function ComplaintForm() {
       cpf: pedido.cpf ?? "",
       telefone: pedido.telefone ?? "",
       email: pedido.email ?? "",
-      canalVenda: pedido.canalVenda ?? prev.canalVenda,
+      canalVenda: canalMapeado ?? prev.canalVenda,
       lojaOuCd: pedido.lojaOuCd ?? prev.lojaOuCd
     }));
+    setCanalVendaOriginal(canalMapeado ? null : pedido.canalVenda);
+    setNumeroPedidoEhIdNexaas(!pedido.numeroPedido && Boolean(pedido.idPedidoNexaas));
+    setItensPedido(pedido.itens ?? []);
     setMostrarFormulario(true);
   }
 
@@ -113,6 +123,7 @@ export function ComplaintForm() {
           submotivo: form.submotivo,
           descricao: form.descricao,
           resolucaoAplicada: form.resolucaoAplicada || null,
+          valorGastoResolucao: form.valorGastoResolucao ? Number(form.valorGastoResolucao) : null,
           responsavel: form.responsavel || null
         })
       });
@@ -150,6 +161,28 @@ export function ComplaintForm() {
             </p>
           )}
 
+          {itensPedido.length > 0 && (
+            <div className="border border-base-200 rounded-md p-3 bg-base-50">
+              <p className="text-sm font-medium text-base-800 mb-2">
+                Itens do pedido ({itensPedido.length})
+              </p>
+              <ul className="space-y-1">
+                {itensPedido.map((item, idx) => (
+                  <li key={idx} className="text-sm text-base-900 flex justify-between gap-2">
+                    <span>
+                      {item.quantidade}× {item.nome}
+                    </span>
+                    {item.valorUnitario != null && (
+                      <span className="text-base-800 font-mono shrink-0">
+                        R$ {item.valorUnitario.toFixed(2)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Canal de venda" required>
               <select
@@ -165,6 +198,13 @@ export function ComplaintForm() {
                   </option>
                 ))}
               </select>
+              {canalVendaOriginal && (
+                <p className="text-xs text-slate2-600 mt-1">
+                  Valor recebido do Nexaas:{" "}
+                  <span className="font-mono">{canalVendaOriginal}</span> — não bateu com
+                  nenhuma opção da lista, selecione manualmente a mais próxima.
+                </p>
+              )}
             </Field>
 
             <Field label="Loja ou CD de origem" required>
@@ -184,6 +224,12 @@ export function ComplaintForm() {
                 onChange={(e) => handleChange("numeroPedido", e.target.value)}
                 className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm font-mono"
               />
+              {numeroPedidoEhIdNexaas && (
+                <p className="text-xs text-slate2-600 mt-1">
+                  Este pedido não tem código externo (comum em vendas de loja física) —
+                  usando o ID interno da Nexaas.
+                </p>
+              )}
             </Field>
 
             <Field label="Data do pedido">
@@ -301,7 +347,7 @@ export function ComplaintForm() {
             />
           </Field>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-3 gap-4">
             <Field label="Resolução aplicada (opcional)">
               <select
                 value={form.resolucaoAplicada}
@@ -315,6 +361,18 @@ export function ComplaintForm() {
                   </option>
                 ))}
               </select>
+            </Field>
+
+            <Field label="Valor total gasto com resolução (R$)">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.valorGastoResolucao}
+                onChange={(e) => handleChange("valorGastoResolucao", e.target.value)}
+                placeholder="0,00"
+                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+              />
             </Field>
 
             <Field label="Responsável (opcional)">

@@ -35,6 +35,9 @@ export function Header() {
           <Link href="/board" className={linkClass("/board")}>
             Board
           </Link>
+          <Link href="/dashboard" className={linkClass("/dashboard")}>
+            Análises
+          </Link>
           <Link href="/nova-reclamacao" className={linkClass("/nova-reclamacao")}>
             Nova reclamação
           </Link>

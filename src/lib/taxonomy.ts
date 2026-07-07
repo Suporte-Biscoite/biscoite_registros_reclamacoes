@@ -75,3 +75,24 @@ export const STATUS_ORDEM = [
   "RESOLVIDO",
   "CANCELADO"
 ] as const;
+
+// O valor de canal de venda que vem do Nexaas (ex: "BISCOITE E-COMMERCE",
+// "SHOPEE", nome de uma loja física) é texto livre e não bate exatamente com
+// as opções fixas do dropdown. Essa função tenta mapear para a opção mais
+// próxima; se não achar nenhuma correspondência, retorna null e o valor bruto
+// fica disponível para o atendente escolher manualmente.
+export function mapCanalVendaNexaas(valorNexaas: string | null | undefined): string | null {
+  if (!valorNexaas) return null;
+  const normalizado = valorNexaas.toUpperCase();
+
+  if (normalizado.includes("SHOPEE")) return "Shopee";
+  if (normalizado.includes("MERCADO LIVRE") || normalizado.includes("MERCADOLIVRE")) return "Mercado Livre";
+  if (normalizado.includes("ITAU") || normalizado.includes("ITAÚ")) return "Itaú (co-branded)";
+  if (normalizado.includes("HOUSE OF GAMERS") || normalizado.includes("HOUSE_OF_GAMERS")) return "House of Gamers";
+  if (normalizado.includes("FOOD TO SAVE")) return "Food to Save";
+  if (normalizado.includes("E-COMMERCE") || normalizado.includes("ECOMMERCE")) return "E-commerce (site)";
+  if (normalizado.includes("FRANQUIA")) return "Loja física - franquia";
+  // Nomes de organização de loja física própria costumam ser o nome da loja em si
+  // (ex: "BISCOITE MOOCA"), sem um marcador claro — tratamos como loja própria por padrão.
+  return null;
+}

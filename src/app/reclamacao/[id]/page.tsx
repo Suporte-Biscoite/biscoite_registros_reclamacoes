@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
-import { STATUS_LABELS } from "@/lib/taxonomy";
+import { STATUS_LABELS, RESOLUCOES } from "@/lib/taxonomy";
 import type { Reclamacao } from "@/lib/types";
 
 interface HistoricoItem {
@@ -91,10 +91,6 @@ export default function DetalheReclamacaoPage() {
                   label="Data de abertura"
                   value={new Date(reclamacao.dataAbertura).toLocaleString("pt-BR")}
                 />
-                <Info
-                  label="Resolução aplicada"
-                  value={reclamacao.resolucaoAplicada ?? "Ainda não definida"}
-                />
                 <Info label="Responsável" value={reclamacao.responsavel ?? "—"} />
               </dl>
 
@@ -105,6 +101,11 @@ export default function DetalheReclamacaoPage() {
                 </p>
               </div>
             </div>
+
+            <PainelResolucaoCusto
+              reclamacao={reclamacao}
+              onAtualizado={(atualizado) => setReclamacao(atualizado)}
+            />
 
             <div className="bg-white border border-base-200 rounded-card p-6">
               <p className="text-sm font-medium text-base-800 mb-3">
@@ -137,6 +138,107 @@ function Info({ label, value, mono }: { label: string; value: string; mono?: boo
     <div>
       <dt className="text-xs text-base-800">{label}</dt>
       <dd className={`text-base-900 ${mono ? "font-mono" : ""}`}>{value}</dd>
+    </div>
+  );
+}
+
+function PainelResolucaoCusto({
+  reclamacao,
+  onAtualizado
+}: {
+  reclamacao: Reclamacao;
+  onAtualizado: (reclamacao: Reclamacao) => void;
+}) {
+  const [resolucaoAplicada, setResolucaoAplicada] = useState(reclamacao.resolucaoAplicada ?? "");
+  const [valorGastoResolucao, setValorGastoResolucao] = useState(
+    reclamacao.valorGastoResolucao != null ? String(reclamacao.valorGastoResolucao) : ""
+  );
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState(false);
+
+  async function handleSalvar() {
+    setSalvando(true);
+    setErro(null);
+    setSucesso(false);
+    try {
+      const res = await fetch(`/api/reclamacoes/${reclamacao.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resolucaoAplicada: resolucaoAplicada || null,
+          valorGastoResolucao: valorGastoResolucao ? Number(valorGastoResolucao) : null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "Não foi possível salvar.");
+        return;
+      }
+      onAtualizado(data.reclamacao);
+      setSucesso(true);
+      setTimeout(() => setSucesso(false), 2500);
+    } catch {
+      setErro("Erro de conexão ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="bg-white border border-base-200 rounded-card p-6">
+      <p className="text-sm font-medium text-base-800 mb-3">Resolução e custo</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">
+            Resolução aplicada
+          </span>
+          <select
+            value={resolucaoAplicada}
+            onChange={(e) => setResolucaoAplicada(e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          >
+            <option value="">Ainda não definida</option>
+            {RESOLUCOES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">
+            Valor total gasto com resolução (R$)
+          </span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={valorGastoResolucao}
+            onChange={(e) => setValorGastoResolucao(e.target.value)}
+            placeholder="0,00"
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+      </div>
+
+      {erro && (
+        <p className="text-sm text-brick-500 mt-3" role="alert">
+          {erro}
+        </p>
+      )}
+      {sucesso && <p className="text-sm text-sage-600 mt-3">Salvo com sucesso.</p>}
+
+      <div className="flex justify-end mt-4">
+        <button
+          onClick={handleSalvar}
+          disabled={salvando}
+          className="focus-ring rounded-md bg-caramel-500 text-white text-sm font-medium px-5 py-2 hover:bg-caramel-600 transition-colors disabled:opacity-60"
+        >
+          {salvando ? "Salvando..." : "Salvar"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -24,6 +24,12 @@ export function getBigQueryClient(): BigQuery {
   return bigQueryClient;
 }
 
+export interface ItemPedido {
+  nome: string;
+  quantidade: number;
+  valorUnitario: number | null;
+}
+
 export interface PedidoEncontrado {
   idPedidoNexaas: string;
   numeroPedido: string | null;
@@ -35,10 +41,26 @@ export interface PedidoEncontrado {
   dataPedido: string | null;
   canalVenda: string | null;
   lojaOuCd: string | null;
+  itens: ItemPedido[];
 }
 
 function normalizarDigitos(valor: string): string {
   return valor.replace(/\D/g, "");
+}
+
+// Gera variações plausíveis do número (com e sem DDI 55), já que não temos
+// controle sobre como cada atendente vai digitar o telefone.
+function variacoesTelefone(valor: string): string[] {
+  const digitos = normalizarDigitos(valor);
+  const variacoes = new Set([digitos]);
+
+  if (digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13)) {
+    variacoes.add(digitos.slice(2));
+  } else if (digitos.length === 10 || digitos.length === 11) {
+    variacoes.add(`55${digitos}`);
+  }
+
+  return Array.from(variacoes);
 }
 
 export type TipoBusca = "numero_pedido" | "telefone" | "cpf";
@@ -52,7 +74,7 @@ export async function buscarPedido(
     "igneous-ethos-444918-p4.BISCOITE.biscoite_bronze";
 
   let whereClause: string;
-  const params: Record<string, string> = {};
+  const params: Record<string, string | string[]> = {};
 
   if (tipo === "numero_pedido") {
     whereClause = `(
@@ -61,27 +83,61 @@ export async function buscarPedido(
     )`;
     params.valor = valor.trim();
   } else if (tipo === "telefone") {
-    whereClause = `JSON_EXTRACT_SCALAR(payload, '$.data.customer.phones[0]') = @valor`;
-    params.valor = normalizarDigitos(valor);
+    // Compara contra TODOS os telefones do pedido (não só o primeiro), e contra
+    // variações com/sem DDI 55, já que a formatação varia entre canais.
+    whereClause = `EXISTS (
+      SELECT 1
+      FROM UNNEST(JSON_VALUE_ARRAY(payload, '$.data.customer.phones')) AS tel
+      WHERE REGEXP_REPLACE(tel, r'[^0-9]', '') IN UNNEST(@valores)
+    )`;
+    params.valores = variacoesTelefone(valor);
   } else {
     whereClause = `JSON_VALUE(payload, '$.data.customer.document') = @valor`;
     params.valor = normalizarDigitos(valor);
   }
 
+  // A tabela bronze guarda um snapshot novo a cada atualização de status do
+  // pedido (confirmado, separado, nota emitida, etc). Por isso, deduplicamos
+  // por id do pedido, mantendo sempre a versão mais recente (maior created_at).
   const query = `
+    WITH pedidos_extraidos AS (
+      SELECT
+        JSON_VALUE(payload, '$.id') AS id_pedido_nexaas,
+        JSON_VALUE(payload, '$.external_code') AS numero_pedido,
+        JSON_VALUE(payload, '$.customer.name') AS nome_cliente,
+        JSON_VALUE(payload, '$.data.customer.document') AS cpf,
+        JSON_VALUE(payload, '$.data.customer.phones[0]') AS telefone,
+        JSON_VALUE(payload, '$.customer.email') AS email,
+        CAST(JSON_VALUE(payload, '$.data.total_value') AS FLOAT64) AS valor_pedido,
+        COALESCE(
+          JSON_VALUE(payload, '$.data.placed_at'),
+          JSON_VALUE(payload, '$.placed_at')
+        ) AS data_pedido,
+        JSON_VALUE(payload, '$.sale_channel_name') AS canal_venda,
+        JSON_VALUE(payload, '$.organization_name') AS loja_ou_cd,
+        JSON_QUERY(payload, '$.data.items') AS itens_json,
+        created_at,
+        ROW_NUMBER() OVER (
+          PARTITION BY JSON_VALUE(payload, '$.id')
+          ORDER BY created_at DESC
+        ) AS posicao
+      FROM \`${tabela}\`
+      WHERE ${whereClause}
+    )
     SELECT
-      JSON_VALUE(payload, '$.id') AS id_pedido_nexaas,
-      JSON_VALUE(payload, '$.external_code') AS numero_pedido,
-      JSON_VALUE(payload, '$.customer.name') AS nome_cliente,
-      JSON_VALUE(payload, '$.data.customer.document') AS cpf,
-      JSON_VALUE(payload, '$.data.customer.phones[0]') AS telefone,
-      JSON_VALUE(payload, '$.customer.email') AS email,
-      CAST(JSON_VALUE(payload, '$.data.total_value') AS FLOAT64) AS valor_pedido,
-      JSON_VALUE(payload, '$.placed_at') AS data_pedido,
-      JSON_VALUE(payload, '$.sale_channel_name') AS canal_venda,
-      JSON_VALUE(payload, '$.organization_name') AS loja_ou_cd
-    FROM \`${tabela}\`
-    WHERE ${whereClause}
+      id_pedido_nexaas,
+      numero_pedido,
+      nome_cliente,
+      cpf,
+      telefone,
+      email,
+      valor_pedido,
+      data_pedido,
+      canal_venda,
+      loja_ou_cd,
+      itens_json
+    FROM pedidos_extraidos
+    WHERE posicao = 1
     ORDER BY created_at DESC
     LIMIT 10
   `;
@@ -102,6 +158,26 @@ export async function buscarPedido(
     valorPedido: row.valor_pedido,
     dataPedido: row.data_pedido,
     canalVenda: row.canal_venda,
-    lojaOuCd: row.loja_ou_cd
+    lojaOuCd: row.loja_ou_cd,
+    itens: parseItens(row.itens_json)
   }));
+}
+
+function parseItens(itensJson: string | null): ItemPedido[] {
+  if (!itensJson) return [];
+  try {
+    const bruto = JSON.parse(itensJson);
+    if (!Array.isArray(bruto)) return [];
+    return bruto.map((item: any) => ({
+      nome:
+        item?.product_sku?.description ??
+        item?.product_sku?.name ??
+        item?.additional_description ??
+        "Item sem nome",
+      quantidade: Number(item?.quantity ?? 1),
+      valorUnitario: item?.unit_price != null ? Number(item.unit_price) : null
+    }));
+  } catch {
+    return [];
+  }
 }
