@@ -77,11 +77,26 @@ export async function buscarPedido(
   const params: Record<string, string | string[]> = {};
 
   if (tipo === "numero_pedido") {
-    whereClause = `(
-      JSON_VALUE(payload, '$.external_code') = @valor
-      OR JSON_VALUE(payload, '$.id') = @valor
-    )`;
-    params.valor = valor.trim();
+    // Cada canal prefixa o código do pedido de um jeito (SLR-, MERCADOLIVRE-,
+    // SHOPEE-, ITAU-, HOUSE_OF_GAMERS-, CRMBONUS-, etc.). Em vez de exigir
+    // igualdade exata, também aceitamos o valor digitado como uma parte do
+    // código completo (e ignoramos maiúsculas/minúsculas), então funciona
+    // tanto se o atendente digitar com o prefixo quanto sem ele.
+    // A busca "contém" só entra em jogo a partir de 6 caracteres, para evitar
+    // trazer resultados demais com números muito curtos (ex: "01").
+    const valorTrim = valor.trim();
+    whereClause =
+      valorTrim.length >= 6
+        ? `(
+            UPPER(JSON_VALUE(payload, '$.external_code')) = UPPER(@valor)
+            OR JSON_VALUE(payload, '$.id') = @valor
+            OR UPPER(JSON_VALUE(payload, '$.external_code')) LIKE CONCAT('%', UPPER(@valor), '%')
+          )`
+        : `(
+            UPPER(JSON_VALUE(payload, '$.external_code')) = UPPER(@valor)
+            OR JSON_VALUE(payload, '$.id') = @valor
+          )`;
+    params.valor = valorTrim;
   } else if (tipo === "telefone") {
     // Compara contra TODOS os telefones do pedido (não só o primeiro), e contra
     // variações com/sem DDI 55, já que a formatação varia entre canais.

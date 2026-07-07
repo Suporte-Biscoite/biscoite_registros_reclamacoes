@@ -8,6 +8,7 @@ export type StatusReclamacao =
 
 export interface Reclamacao {
   id: string;
+  numeroProtocolo: number;
   numeroPedido: string | null;
   idPedidoNexaas: string | null;
   canalVenda: string;

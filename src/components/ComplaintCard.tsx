@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import type { Reclamacao } from "@/lib/types";
+import { formatarProtocolo } from "@/lib/format";
 
 function diasEmAberto(dataAbertura: string): number {
   const inicio = new Date(dataAbertura).getTime();
@@ -46,6 +47,9 @@ export function ComplaintCard({ reclamacao }: { reclamacao: Reclamacao }) {
           {dias}d
         </span>
       </div>
+      <p className="text-[11px] font-mono text-base-800 mt-0.5">
+        Protocolo Nº {formatarProtocolo(reclamacao.numeroProtocolo)}
+      </p>
       <p className="text-xs text-base-800 mt-1">
         {reclamacao.motivo} · {reclamacao.submotivo}
       </p>

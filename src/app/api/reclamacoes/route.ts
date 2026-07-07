@@ -2,11 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { criarReclamacaoSchema } from "@/lib/validation";
 
-export async function GET() {
-  const reclamacoes = await prisma.reclamacao.findMany({
-    orderBy: { dataAbertura: "desc" }
-  });
-  return NextResponse.json({ reclamacoes });
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const pageParam = searchParams.get("page");
+
+  // Sem "page": mantém o comportamento original (usado pelo board Kanban,
+  // que precisa de todas as reclamações de uma vez para montar as colunas).
+  if (!pageParam) {
+    const reclamacoes = await prisma.reclamacao.findMany({
+      orderBy: { dataAbertura: "desc" }
+    });
+    return NextResponse.json({ reclamacoes });
+  }
+
+  // Com "page": retorna uma página só, para a tabela com paginação.
+  const page = Math.max(1, Number(pageParam) || 1);
+  const pageSize = Math.max(1, Math.min(100, Number(searchParams.get("pageSize")) || 10));
+
+  const [reclamacoes, total] = await Promise.all([
+    prisma.reclamacao.findMany({
+      orderBy: { dataAbertura: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    }),
+    prisma.reclamacao.count()
+  ]);
+
+  return NextResponse.json({ reclamacoes, total, page, pageSize });
 }
 
 export async function POST(request: NextRequest) {

@@ -19,6 +19,7 @@ enum StatusReclamacao {
 
 model Reclamacao {
   id                  String            @id @default(cuid())
+  numeroProtocolo     Int               @unique @default(autoincrement())
 
   // Dados do pedido (auto-preenchidos ou manuais)
   numeroPedido        String?

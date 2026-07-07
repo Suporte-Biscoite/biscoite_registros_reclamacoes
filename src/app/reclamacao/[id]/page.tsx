@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { STATUS_LABELS, RESOLUCOES } from "@/lib/taxonomy";
+import { formatarProtocolo } from "@/lib/format";
 import type { Reclamacao } from "@/lib/types";
 
 interface HistoricoItem {
@@ -60,6 +61,9 @@ export default function DetalheReclamacaoPage() {
             <div className="bg-white border border-base-200 rounded-card p-6">
               <div className="flex items-start justify-between">
                 <div>
+                  <p className="text-xs font-mono text-base-800 mb-0.5">
+                    Protocolo Nº {formatarProtocolo(reclamacao.numeroProtocolo)}
+                  </p>
                   <h2 className="font-display text-xl text-base-900">
                     {reclamacao.nomeCliente}
                   </h2>
