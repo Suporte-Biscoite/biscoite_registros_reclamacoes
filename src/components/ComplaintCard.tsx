@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import type { Reclamacao } from "@/lib/types";
@@ -11,10 +12,17 @@ function diasEmAberto(dataAbertura: string): number {
   return Math.max(0, Math.floor((agora - inicio) / (1000 * 60 * 60 * 24)));
 }
 
-export function ComplaintCard({ reclamacao }: { reclamacao: Reclamacao }) {
+export function ComplaintCard({
+  reclamacao,
+  onExcluir
+}: {
+  reclamacao: Reclamacao;
+  onExcluir: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: reclamacao.id
   });
+  const [excluindo, setExcluindo] = useState(false);
 
   const style = transform
     ? {
@@ -25,6 +33,28 @@ export function ComplaintCard({ reclamacao }: { reclamacao: Reclamacao }) {
 
   const dias = diasEmAberto(reclamacao.dataAbertura);
 
+  async function handleExcluir(e: React.MouseEvent | React.PointerEvent) {
+    e.stopPropagation();
+    const confirmado = confirm(
+      `Excluir a reclamação Nº ${formatarProtocolo(reclamacao.numeroProtocolo)} (${reclamacao.nomeCliente})? Essa ação não pode ser desfeita.`
+    );
+    if (!confirmado) return;
+
+    setExcluindo(true);
+    try {
+      const res = await fetch(`/api/reclamacoes/${reclamacao.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onExcluir(reclamacao.id);
+      } else {
+        alert("Não foi possível excluir a reclamação. Tente novamente.");
+        setExcluindo(false);
+      }
+    } catch {
+      alert("Erro de conexão ao excluir a reclamação.");
+      setExcluindo(false);
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -33,7 +63,7 @@ export function ComplaintCard({ reclamacao }: { reclamacao: Reclamacao }) {
       {...attributes}
       className={`focus-ring rounded-md border border-base-200 bg-white p-3 shadow-sm cursor-grab active:cursor-grabbing ${
         isDragging ? "opacity-50" : ""
-      }`}
+      } ${excluindo ? "opacity-40 pointer-events-none" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-base-900 leading-snug">
@@ -59,13 +89,24 @@ export function ComplaintCard({ reclamacao }: { reclamacao: Reclamacao }) {
           <span className="font-mono"> · #{reclamacao.numeroPedido}</span>
         )}
       </p>
-      <Link
-        href={`/reclamacao/${reclamacao.id}`}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="focus-ring inline-block mt-2 text-xs text-caramel-500 hover:text-caramel-600 underline"
-      >
-        Ver detalhes
-      </Link>
+      <div className="flex items-center gap-3 mt-2">
+        <Link
+          href={`/reclamacao/${reclamacao.id}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="focus-ring text-xs text-caramel-500 hover:text-caramel-600 underline"
+        >
+          Ver detalhes / editar
+        </Link>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={handleExcluir}
+          disabled={excluindo}
+          className="focus-ring text-xs text-brick-500 hover:text-brick-600 underline disabled:opacity-60"
+        >
+          {excluindo ? "Excluindo..." : "Excluir"}
+        </button>
+      </div>
     </div>
   );
 }

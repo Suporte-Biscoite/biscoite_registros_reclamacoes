@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
-import { STATUS_LABELS, RESOLUCOES } from "@/lib/taxonomy";
+import { STATUS_LABELS, RESOLUCOES, CANAIS_VENDA, TAXONOMIA, MOTIVOS } from "@/lib/taxonomy";
 import { formatarProtocolo } from "@/lib/format";
 import { AnexosPanel } from "@/components/AnexosPanel";
 import type { Reclamacao } from "@/lib/types";
@@ -43,6 +43,26 @@ export default function DetalheReclamacaoPage() {
     carregar();
   }, [params.id]);
 
+  async function handleExcluirReclamacao() {
+    if (!reclamacao) return;
+    const confirmado = confirm(
+      `Excluir a reclamação Nº ${formatarProtocolo(reclamacao.numeroProtocolo)} (${reclamacao.nomeCliente})? Essa ação não pode ser desfeita e remove também os anexos.`
+    );
+    if (!confirmado) return;
+
+    try {
+      const res = await fetch(`/api/reclamacoes/${reclamacao.id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/board");
+        router.refresh();
+      } else {
+        alert("Não foi possível excluir a reclamação.");
+      }
+    } catch {
+      alert("Erro de conexão ao excluir a reclamação.");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-base-50">
       <Header />
@@ -76,36 +96,12 @@ export default function DetalheReclamacaoPage() {
                   {STATUS_LABELS[reclamacao.status]}
                 </span>
               </div>
-
-              <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 mt-5 text-sm">
-                <Info label="Canal de venda" value={reclamacao.canalVenda} />
-                <Info label="Loja / CD" value={reclamacao.lojaOuCd} />
-                <Info label="Número do pedido" value={reclamacao.numeroPedido ?? "—"} mono />
-                <Info
-                  label="Valor do pedido"
-                  value={
-                    reclamacao.valorPedido != null
-                      ? `R$ ${Number(reclamacao.valorPedido).toFixed(2)}`
-                      : "—"
-                  }
-                />
-                <Info label="CPF" value={reclamacao.cpf ?? "—"} />
-                <Info label="Telefone" value={reclamacao.telefone ?? "—"} />
-                <Info label="E-mail" value={reclamacao.email ?? "—"} />
-                <Info
-                  label="Data de abertura"
-                  value={new Date(reclamacao.dataAbertura).toLocaleString("pt-BR")}
-                />
-                <Info label="Responsável" value={reclamacao.responsavel ?? "—"} />
-              </dl>
-
-              <div className="mt-5">
-                <p className="text-sm font-medium text-base-800 mb-1">Descrição</p>
-                <p className="text-sm text-base-900 whitespace-pre-wrap">
-                  {reclamacao.descricao}
-                </p>
-              </div>
             </div>
+
+            <PainelDadosReclamacao
+              reclamacao={reclamacao}
+              onAtualizado={(atualizado) => setReclamacao(atualizado)}
+            />
 
             {reclamacao.pedidoSnapshot && reclamacao.pedidoSnapshot.itens?.length > 0 && (
               <div className="bg-white border border-base-200 rounded-card p-6">
@@ -201,9 +197,322 @@ export default function DetalheReclamacaoPage() {
                 ))}
               </ol>
             </div>
+
+            <div className="bg-white border border-brick-100 rounded-card p-6">
+              <p className="text-sm font-medium text-brick-600 mb-1">Zona de risco</p>
+              <p className="text-xs text-base-800 mb-3">
+                Excluir remove permanentemente esta reclamação, seu histórico e seus
+                anexos. Essa ação não pode ser desfeita.
+              </p>
+              <button
+                onClick={handleExcluirReclamacao}
+                className="focus-ring rounded-md border border-brick-500 text-brick-500 text-sm font-medium px-4 py-2 hover:bg-brick-100 transition-colors"
+              >
+                Excluir reclamação
+              </button>
+            </div>
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function PainelDadosReclamacao({
+  reclamacao,
+  onAtualizado
+}: {
+  reclamacao: Reclamacao;
+  onAtualizado: (reclamacao: Reclamacao) => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const [dados, setDados] = useState({
+    canalVenda: reclamacao.canalVenda,
+    lojaOuCd: reclamacao.lojaOuCd,
+    numeroPedido: reclamacao.numeroPedido ?? "",
+    valorPedido: reclamacao.valorPedido != null ? String(reclamacao.valorPedido) : "",
+    nomeCliente: reclamacao.nomeCliente,
+    cpf: reclamacao.cpf ?? "",
+    telefone: reclamacao.telefone ?? "",
+    email: reclamacao.email ?? "",
+    motivo: reclamacao.motivo,
+    submotivo: reclamacao.submotivo,
+    descricao: reclamacao.descricao
+  });
+
+  const submotivos = useMemo(
+    () => TAXONOMIA[dados.motivo] ?? [],
+    [dados.motivo]
+  );
+
+  function iniciarEdicao() {
+    setDados({
+      canalVenda: reclamacao.canalVenda,
+      lojaOuCd: reclamacao.lojaOuCd,
+      numeroPedido: reclamacao.numeroPedido ?? "",
+      valorPedido: reclamacao.valorPedido != null ? String(reclamacao.valorPedido) : "",
+      nomeCliente: reclamacao.nomeCliente,
+      cpf: reclamacao.cpf ?? "",
+      telefone: reclamacao.telefone ?? "",
+      email: reclamacao.email ?? "",
+      motivo: reclamacao.motivo,
+      submotivo: reclamacao.submotivo,
+      descricao: reclamacao.descricao
+    });
+    setErro(null);
+    setEditando(true);
+  }
+
+  function handleCampo<K extends keyof typeof dados>(campo: K, valor: (typeof dados)[K]) {
+    setDados((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  async function handleSalvar() {
+    if (!dados.cpf && !dados.telefone && !dados.email) {
+      setErro("Informe ao menos um identificador de contato: CPF, telefone ou e-mail.");
+      return;
+    }
+
+    setSalvando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/reclamacoes/${reclamacao.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          canalVenda: dados.canalVenda,
+          lojaOuCd: dados.lojaOuCd,
+          numeroPedido: dados.numeroPedido || null,
+          valorPedido: dados.valorPedido ? Number(dados.valorPedido) : null,
+          nomeCliente: dados.nomeCliente,
+          cpf: dados.cpf || null,
+          telefone: dados.telefone || null,
+          email: dados.email || null,
+          motivo: dados.motivo,
+          submotivo: dados.submotivo,
+          descricao: dados.descricao
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "Não foi possível salvar.");
+        return;
+      }
+      onAtualizado({ ...reclamacao, ...data.reclamacao });
+      setEditando(false);
+    } catch {
+      setErro("Erro de conexão ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (!editando) {
+    return (
+      <div className="bg-white border border-base-200 rounded-card p-6">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-base-800">Dados da reclamação</p>
+          <button
+            onClick={iniciarEdicao}
+            className="focus-ring text-xs text-caramel-500 hover:text-caramel-600 underline"
+          >
+            Editar
+          </button>
+        </div>
+        <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <Info label="Canal de venda" value={reclamacao.canalVenda} />
+          <Info label="Loja / CD" value={reclamacao.lojaOuCd} />
+          <Info label="Número do pedido" value={reclamacao.numeroPedido ?? "—"} mono />
+          <Info
+            label="Valor do pedido"
+            value={
+              reclamacao.valorPedido != null
+                ? `R$ ${Number(reclamacao.valorPedido).toFixed(2)}`
+                : "—"
+            }
+          />
+          <Info label="Nome do cliente" value={reclamacao.nomeCliente} />
+          <Info label="CPF" value={reclamacao.cpf ?? "—"} />
+          <Info label="Telefone" value={reclamacao.telefone ?? "—"} />
+          <Info label="E-mail" value={reclamacao.email ?? "—"} />
+          <Info label="Motivo" value={reclamacao.motivo} />
+          <Info label="Submotivo" value={reclamacao.submotivo} />
+          <Info
+            label="Data de abertura"
+            value={new Date(reclamacao.dataAbertura).toLocaleString("pt-BR")}
+          />
+        </dl>
+        <div className="mt-5">
+          <p className="text-sm font-medium text-base-800 mb-1">Descrição</p>
+          <p className="text-sm text-base-900 whitespace-pre-wrap">{reclamacao.descricao}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-base-200 rounded-card p-6">
+      <p className="text-sm font-medium text-base-800 mb-3">Editar dados da reclamação</p>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Canal de venda</span>
+          <select
+            value={dados.canalVenda}
+            onChange={(e) => handleCampo("canalVenda", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          >
+            {CANAIS_VENDA.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Loja ou CD</span>
+          <input
+            type="text"
+            value={dados.lojaOuCd}
+            onChange={(e) => handleCampo("lojaOuCd", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Número do pedido</span>
+          <input
+            type="text"
+            value={dados.numeroPedido}
+            onChange={(e) => handleCampo("numeroPedido", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">
+            Valor do pedido (R$)
+          </span>
+          <input
+            type="number"
+            step="0.01"
+            value={dados.valorPedido}
+            onChange={(e) => handleCampo("valorPedido", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Nome do cliente</span>
+          <input
+            type="text"
+            value={dados.nomeCliente}
+            onChange={(e) => handleCampo("nomeCliente", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">CPF</span>
+          <input
+            type="text"
+            value={dados.cpf}
+            onChange={(e) => handleCampo("cpf", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Telefone</span>
+          <input
+            type="text"
+            value={dados.telefone}
+            onChange={(e) => handleCampo("telefone", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">E-mail</span>
+          <input
+            type="email"
+            value={dados.email}
+            onChange={(e) => handleCampo("email", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Motivo</span>
+          <select
+            value={dados.motivo}
+            onChange={(e) => {
+              handleCampo("motivo", e.target.value);
+              handleCampo("submotivo", "");
+            }}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          >
+            {MOTIVOS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Submotivo</span>
+          <select
+            value={dados.submotivo}
+            onChange={(e) => handleCampo("submotivo", e.target.value)}
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          >
+            <option value="">Selecione</option>
+            {submotivos.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className="block mt-4">
+        <span className="block text-sm font-medium text-base-800 mb-1">Descrição</span>
+        <textarea
+          rows={3}
+          value={dados.descricao}
+          onChange={(e) => handleCampo("descricao", e.target.value)}
+          className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+        />
+      </label>
+
+      {erro && (
+        <p className="text-sm text-brick-500 mt-3" role="alert">
+          {erro}
+        </p>
+      )}
+
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          onClick={() => setEditando(false)}
+          disabled={salvando}
+          className="focus-ring rounded-md border border-base-300 text-base-800 text-sm font-medium px-4 py-2 hover:bg-base-100 transition-colors disabled:opacity-60"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSalvar}
+          disabled={salvando}
+          className="focus-ring rounded-md bg-caramel-500 text-white text-sm font-medium px-5 py-2 hover:bg-caramel-600 transition-colors disabled:opacity-60"
+        >
+          {salvando ? "Salvando..." : "Salvar"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -228,6 +537,7 @@ function PainelResolucaoCusto({
   const [valorGastoResolucao, setValorGastoResolucao] = useState(
     reclamacao.valorGastoResolucao != null ? String(reclamacao.valorGastoResolucao) : ""
   );
+  const [responsavel, setResponsavel] = useState(reclamacao.responsavel ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
@@ -242,7 +552,8 @@ function PainelResolucaoCusto({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           resolucaoAplicada: resolucaoAplicada || null,
-          valorGastoResolucao: valorGastoResolucao ? Number(valorGastoResolucao) : null
+          valorGastoResolucao: valorGastoResolucao ? Number(valorGastoResolucao) : null,
+          responsavel: responsavel || null
         })
       });
       const data = await res.json();
@@ -250,7 +561,7 @@ function PainelResolucaoCusto({
         setErro(data.error ?? "Não foi possível salvar.");
         return;
       }
-      onAtualizado(data.reclamacao);
+      onAtualizado({ ...reclamacao, ...data.reclamacao });
       setSucesso(true);
       setTimeout(() => setSucesso(false), 2500);
     } catch {
@@ -263,7 +574,7 @@ function PainelResolucaoCusto({
   return (
     <div className="bg-white border border-base-200 rounded-card p-6">
       <p className="text-sm font-medium text-base-800 mb-3">Resolução e custo</p>
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-3 gap-4">
         <label className="block">
           <span className="block text-sm font-medium text-base-800 mb-1">
             Resolução aplicada
@@ -293,6 +604,16 @@ function PainelResolucaoCusto({
             value={valorGastoResolucao}
             onChange={(e) => setValorGastoResolucao(e.target.value)}
             placeholder="0,00"
+            className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium text-base-800 mb-1">Responsável</span>
+          <input
+            type="text"
+            value={responsavel}
+            onChange={(e) => setResponsavel(e.target.value)}
             className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
           />
         </label>

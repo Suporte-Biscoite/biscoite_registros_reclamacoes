@@ -63,6 +63,10 @@ export function Board() {
     }
   }
 
+  function handleExcluir(id: string) {
+    setReclamacoes((prev) => prev.filter((r) => r.id !== id));
+  }
+
   if (carregando) {
     return <p className="text-sm text-base-800">Carregando board...</p>;
   }
@@ -82,6 +86,7 @@ export function Board() {
               status={status}
               label={STATUS_LABELS[status]}
               reclamacoes={reclamacoes.filter((r) => r.status === status)}
+              onExcluir={handleExcluir}
             />
           ))}
         </div>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -29,11 +30,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
 
+  // Campos que podem ser editados depois de criada a reclamação. Deixamos de
+  // fora campos "de sistema" (id, protocolo, status — que tem rota própria —,
+  // histórico, anexos, datas de criação/abertura e o retrato do pedido).
   const camposPermitidos = [
+    "canalVenda",
+    "lojaOuCd",
+    "numeroPedido",
+    "valorPedido",
+    "nomeCliente",
+    "cpf",
+    "telefone",
+    "email",
+    "motivo",
+    "submotivo",
+    "descricao",
     "resolucaoAplicada",
     "valorGastoResolucao",
-    "responsavel",
-    "descricao"
+    "responsavel"
   ] as const;
 
   const data: Record<string, unknown> = {};
@@ -56,4 +70,35 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ error: "Reclamação não encontrada." }, { status: 404 });
   }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const reclamacao = await prisma.reclamacao.findUnique({
+    where: { id: params.id },
+    include: { anexos: true }
+  });
+
+  if (!reclamacao) {
+    return NextResponse.json({ error: "Reclamação não encontrada." }, { status: 404 });
+  }
+
+  // Remove os arquivos do storage antes de apagar o registro — sem isso, os
+  // anexos ficariam "órfãos" no Vercel Blob, sem nenhuma reclamação
+  // apontando para eles.
+  for (const anexo of reclamacao.anexos) {
+    try {
+      await del(anexo.url);
+    } catch (err) {
+      console.error("Erro ao remover anexo do storage:", err);
+    }
+  }
+
+  // O histórico de status e os registros de anexo são removidos
+  // automaticamente pelo banco (cascade), já configurado no schema.
+  await prisma.reclamacao.delete({ where: { id: params.id } });
+
+  return NextResponse.json({ ok: true });
 }

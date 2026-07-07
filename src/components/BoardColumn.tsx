@@ -8,9 +8,10 @@ interface BoardColumnProps {
   status: StatusReclamacao;
   label: string;
   reclamacoes: Reclamacao[];
+  onExcluir: (id: string) => void;
 }
 
-export function BoardColumn({ status, label, reclamacoes }: BoardColumnProps) {
+export function BoardColumn({ status, label, reclamacoes, onExcluir }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
@@ -26,7 +27,7 @@ export function BoardColumn({ status, label, reclamacoes }: BoardColumnProps) {
       </div>
       <div className="flex-1 p-2 space-y-2 min-h-[200px]">
         {reclamacoes.map((r) => (
-          <ComplaintCard key={r.id} reclamacao={r} />
+          <ComplaintCard key={r.id} reclamacao={r} onExcluir={onExcluir} />
         ))}
         {reclamacoes.length === 0 && (
           <p className="text-xs text-base-800 text-center py-6">
