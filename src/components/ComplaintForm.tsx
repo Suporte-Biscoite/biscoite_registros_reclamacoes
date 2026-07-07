@@ -173,27 +173,20 @@ export function ComplaintForm() {
     setForm((prev) => ({ ...prev, [campo]: valor }));
   }
 
+  function limparCampos() {
+    setForm(ESTADO_INICIAL);
+    setItensPedido([]);
+    setCanalVendaOriginal(null);
+    setNumeroPedidoEhIdNexaas(false);
+    setPedidoSnapshot(null);
+    setMensagemBuscaCliente(null);
+    setErro(null);
+  }
+
   function handleTrocarModo(novoModo: "com_pedido" | "sem_pedido") {
     setModo(novoModo);
-    setErro(null);
-    if (novoModo === "sem_pedido") {
-      setForm((prev) => ({
-        ...prev,
-        numeroPedido: "",
-        idPedidoNexaas: "",
-        dataPedido: "",
-        valorPedido: "",
-        pedidoLocalizado: false
-      }));
-      setItensPedido([]);
-      setCanalVendaOriginal(null);
-      setNumeroPedidoEhIdNexaas(false);
-      setPedidoSnapshot(null);
-      setMensagemBuscaCliente(null);
-      setMostrarFormulario(true);
-    } else {
-      setMostrarFormulario(false);
-    }
+    limparCampos();
+    setMostrarFormulario(novoModo === "sem_pedido");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -282,10 +275,19 @@ export function ComplaintForm() {
       )}
 
       {modo === "sem_pedido" && (
-        <p className="text-xs text-base-800">
-          Use esta opção para reclamações que não se referem a um pedido específico —
-          atendimento em loja, infraestrutura, limpeza, etc.
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-base-800">
+            Use esta opção para reclamações que não se referem a um pedido específico —
+            atendimento em loja, infraestrutura, limpeza, etc.
+          </p>
+          <button
+            type="button"
+            onClick={limparCampos}
+            className="focus-ring shrink-0 text-xs text-slate2-600 underline hover:text-slate2-500"
+          >
+            Limpar campos
+          </button>
+        </div>
       )}
 
       {mostrarFormulario && (
