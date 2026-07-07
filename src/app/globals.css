@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #FAFAF9;
+  color: #211F1A;
+}
+
+* {
+  border-color: #E7E6E2;
+}
+
+.ticket-edge {
+  position: relative;
+}
+
+.ticket-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #D3D1CB 0,
+    #D3D1CB 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid #B7791F;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

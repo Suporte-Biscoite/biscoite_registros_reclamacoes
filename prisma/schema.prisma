@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+enum StatusReclamacao {
+  ABERTO
+  EM_ANALISE
+  AGUARDANDO_CLIENTE
+  AGUARDANDO_LOJA_CD
+  RESOLVIDO
+  CANCELADO
+}
+
+model Reclamacao {
+  id                  String            @id @default(cuid())
+
+  // Dados do pedido (auto-preenchidos ou manuais)
+  numeroPedido        String?
+  idPedidoNexaas      String?
+  canalVenda          String
+  lojaOuCd            String
+  dataPedido          DateTime?
+  valorPedido         Decimal?          @db.Decimal(10, 2)
+  pedidoLocalizado    Boolean           @default(false)
+
+  // Dados do cliente
+  nomeCliente         String
+  cpf                 String?
+  telefone            String?
+  email               String?
+
+  // Classificação
+  motivo              String
+  submotivo           String
+  descricao           String
+
+  // Resolução
+  resolucaoAplicada    String?
+  valorGastoResolucao  Decimal?         @db.Decimal(10, 2)
+
+  // Controle
+  status              StatusReclamacao  @default(ABERTO)
+  responsavel         String?
+  dataAbertura        DateTime          @default(now())
+  criadoEm            DateTime          @default(now())
+  atualizadoEm        DateTime          @updatedAt
+
+  historico           HistoricoStatus[]
+
+  @@index([status])
+  @@index([numeroPedido])
+  @@index([cpf])
+}
+
+model HistoricoStatus {
+  id              String            @id @default(cuid())
+  reclamacaoId    String
+  reclamacao      Reclamacao        @relation(fields: [reclamacaoId], references: [id], onDelete: Cascade)
+  statusAnterior  StatusReclamacao?
+  statusNovo      StatusReclamacao
+  dataHora        DateTime          @default(now())
+
+  @@index([reclamacaoId])
+}
+
+model Loja {
+  id            String  @id @default(cuid())
+  nome          String  @unique
+  lider         String?
+  telefoneLider String?
+  telefoneLoja  String?
+}
