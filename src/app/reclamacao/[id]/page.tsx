@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { STATUS_LABELS, RESOLUCOES } from "@/lib/taxonomy";
 import { formatarProtocolo } from "@/lib/format";
+import { AnexosPanel } from "@/components/AnexosPanel";
 import type { Reclamacao } from "@/lib/types";
 
 interface HistoricoItem {
@@ -109,6 +110,11 @@ export default function DetalheReclamacaoPage() {
             <PainelResolucaoCusto
               reclamacao={reclamacao}
               onAtualizado={(atualizado) => setReclamacao(atualizado)}
+            />
+
+            <AnexosPanel
+              reclamacaoId={reclamacao.id}
+              anexosIniciais={reclamacao.anexos ?? []}
             />
 
             <div className="bg-white border border-base-200 rounded-card p-6">

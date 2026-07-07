@@ -102,6 +102,11 @@ export function OrderSearch({ onPedidoSelecionado, onBuscaManual }: OrderSearchP
       {buscou && !erro && resultados.length === 0 && (
         <div className="mt-3 text-sm text-base-800">
           <p>Nenhum pedido encontrado com esse critério.</p>
+          <p className="text-xs text-base-800 mt-1">
+            Se o pedido foi feito há poucas horas, pode ser que ainda não tenha sido
+            sincronizado com a base de busca — nesse caso, cadastre manualmente por
+            enquanto e complemente os dados depois.
+          </p>
           <button
             type="button"
             onClick={onBuscaManual}

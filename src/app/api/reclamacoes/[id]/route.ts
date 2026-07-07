@@ -7,7 +7,10 @@ export async function GET(
 ) {
   const reclamacao = await prisma.reclamacao.findUnique({
     where: { id: params.id },
-    include: { historico: { orderBy: { dataHora: "asc" } } }
+    include: {
+      historico: { orderBy: { dataHora: "asc" } },
+      anexos: { orderBy: { criadoEm: "asc" } }
+    }
   });
 
   if (!reclamacao) {

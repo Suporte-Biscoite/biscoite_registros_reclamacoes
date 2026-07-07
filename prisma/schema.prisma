@@ -53,10 +53,24 @@ model Reclamacao {
   atualizadoEm        DateTime          @updatedAt
 
   historico           HistoricoStatus[]
+  anexos              Anexo[]
 
   @@index([status])
   @@index([numeroPedido])
   @@index([cpf])
+}
+
+model Anexo {
+  id            String     @id @default(cuid())
+  reclamacaoId  String
+  reclamacao    Reclamacao @relation(fields: [reclamacaoId], references: [id], onDelete: Cascade)
+  nomeArquivo   String
+  url           String
+  tipoArquivo   String?
+  tamanho       Int?
+  criadoEm      DateTime   @default(now())
+
+  @@index([reclamacaoId])
 }
 
 model HistoricoStatus {

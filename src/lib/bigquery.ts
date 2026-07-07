@@ -84,7 +84,9 @@ export async function buscarPedido(
     // tanto se o atendente digitar com o prefixo quanto sem ele.
     // A busca "contém" só entra em jogo a partir de 6 caracteres, para evitar
     // trazer resultados demais com números muito curtos (ex: "01").
-    const valorTrim = valor.trim();
+    // Se a pessoa copiar o número direto da tela (ex: "#3284066"), o "#" é só
+    // formatação visual e não existe no dado real armazenado — removemos.
+    const valorTrim = valor.trim().replace(/^#+/, "");
     whereClause =
       valorTrim.length >= 6
         ? `(
@@ -157,11 +159,19 @@ export async function buscarPedido(
     LIMIT 10
   `;
 
+  const types: Record<string, string | string[]> =
+    tipo === "telefone" ? { valores: ["STRING"] } : { valor: "STRING" };
+
   const [rows] = await client.query({
     query,
     params,
+    types,
     location: process.env.BIGQUERY_LOCATION ?? "US"
   });
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[buscarPedido]", { tipo, valorOriginal: valor, params, resultados: rows.length });
+  }
 
   return rows.map((row: any) => ({
     idPedidoNexaas: row.id_pedido_nexaas,

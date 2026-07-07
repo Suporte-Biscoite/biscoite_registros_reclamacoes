@@ -6,6 +6,15 @@ export type StatusReclamacao =
   | "RESOLVIDO"
   | "CANCELADO";
 
+export interface Anexo {
+  id: string;
+  nomeArquivo: string;
+  url: string;
+  tipoArquivo: string | null;
+  tamanho: number | null;
+  criadoEm: string;
+}
+
 export interface Reclamacao {
   id: string;
   numeroProtocolo: number;
@@ -30,4 +39,5 @@ export interface Reclamacao {
   dataAbertura: string;
   criadoEm: string;
   atualizadoEm: string;
+  anexos?: Anexo[];
 }
