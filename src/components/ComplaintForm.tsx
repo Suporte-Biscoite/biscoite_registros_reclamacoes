@@ -62,6 +62,7 @@ export function ComplaintForm() {
   const [itensPedido, setItensPedido] = useState<ItemPedido[]>([]);
   const [canalVendaOriginal, setCanalVendaOriginal] = useState<string | null>(null);
   const [numeroPedidoEhIdNexaas, setNumeroPedidoEhIdNexaas] = useState(false);
+  const [pedidoSnapshot, setPedidoSnapshot] = useState<PedidoEncontrado | null>(null);
 
   const submotivos = useMemo(
     () => (form.motivo ? TAXONOMIA[form.motivo] ?? [] : []),
@@ -87,6 +88,7 @@ export function ComplaintForm() {
     setCanalVendaOriginal(canalMapeado ? null : pedido.canalVenda);
     setNumeroPedidoEhIdNexaas(!pedido.numeroPedido && Boolean(pedido.idPedidoNexaas));
     setItensPedido(pedido.itens ?? []);
+    setPedidoSnapshot(pedido);
     setMostrarFormulario(true);
   }
 
@@ -109,6 +111,7 @@ export function ComplaintForm() {
       setItensPedido([]);
       setCanalVendaOriginal(null);
       setNumeroPedidoEhIdNexaas(false);
+      setPedidoSnapshot(null);
       setMostrarFormulario(true);
     } else {
       setMostrarFormulario(false);
@@ -146,7 +149,8 @@ export function ComplaintForm() {
           descricao: form.descricao,
           resolucaoAplicada: form.resolucaoAplicada || null,
           valorGastoResolucao: form.valorGastoResolucao ? Number(form.valorGastoResolucao) : null,
-          responsavel: form.responsavel || null
+          responsavel: form.responsavel || null,
+          pedidoSnapshot: pedidoSnapshot
         })
       });
 
@@ -236,6 +240,22 @@ export function ComplaintForm() {
                   </li>
                 ))}
               </ul>
+              {(pedidoSnapshot?.frete != null || pedidoSnapshot?.desconto != null) && (
+                <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
+                  {pedidoSnapshot?.frete != null && (
+                    <p className="text-xs text-base-800 flex justify-between">
+                      <span>Frete</span>
+                      <span className="font-mono">R$ {pedidoSnapshot.frete.toFixed(2)}</span>
+                    </p>
+                  )}
+                  {pedidoSnapshot?.desconto != null && pedidoSnapshot.desconto > 0 && (
+                    <p className="text-xs text-base-800 flex justify-between">
+                      <span>Desconto</span>
+                      <span className="font-mono">- R$ {pedidoSnapshot.desconto.toFixed(2)}</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

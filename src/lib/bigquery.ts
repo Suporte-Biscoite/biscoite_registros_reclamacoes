@@ -38,6 +38,8 @@ export interface PedidoEncontrado {
   telefone: string | null;
   email: string | null;
   valorPedido: number | null;
+  frete: number | null;
+  desconto: number | null;
   dataPedido: string | null;
   canalVenda: string | null;
   lojaOuCd: string | null;
@@ -126,6 +128,8 @@ export async function buscarPedido(
         JSON_VALUE(payload, '$.data.customer.phones[0]') AS telefone,
         JSON_VALUE(payload, '$.customer.email') AS email,
         CAST(JSON_VALUE(payload, '$.data.total_value') AS FLOAT64) AS valor_pedido,
+        CAST(JSON_VALUE(payload, '$.data.shipping') AS FLOAT64) AS frete,
+        CAST(JSON_VALUE(payload, '$.data.discount') AS FLOAT64) AS desconto,
         COALESCE(
           JSON_VALUE(payload, '$.data.placed_at'),
           JSON_VALUE(payload, '$.placed_at')
@@ -149,6 +153,8 @@ export async function buscarPedido(
       telefone,
       email,
       valor_pedido,
+      frete,
+      desconto,
       data_pedido,
       canal_venda,
       loja_ou_cd,
@@ -181,6 +187,8 @@ export async function buscarPedido(
     telefone: row.telefone,
     email: row.email,
     valorPedido: row.valor_pedido,
+    frete: row.frete,
+    desconto: row.desconto,
     dataPedido: row.data_pedido,
     canalVenda: row.canal_venda,
     lojaOuCd: row.loja_ou_cd,

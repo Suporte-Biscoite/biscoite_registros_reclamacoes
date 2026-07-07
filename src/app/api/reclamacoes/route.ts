@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       resolucaoAplicada: data.resolucaoAplicada ?? null,
       valorGastoResolucao: data.valorGastoResolucao ?? null,
       responsavel: data.responsavel ?? null,
+      pedidoSnapshot: data.pedidoSnapshot ?? undefined,
       historico: {
         create: {
           statusAnterior: null,

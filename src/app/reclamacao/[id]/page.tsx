@@ -107,6 +107,54 @@ export default function DetalheReclamacaoPage() {
               </div>
             </div>
 
+            {reclamacao.pedidoSnapshot && reclamacao.pedidoSnapshot.itens?.length > 0 && (
+              <div className="bg-white border border-base-200 rounded-card p-6">
+                <p className="text-sm font-medium text-base-800 mb-1">
+                  Itens do pedido no momento da reclamação
+                </p>
+                <p className="text-xs text-base-800 mb-3">
+                  Este é um retrato de como o pedido estava quando a reclamação foi
+                  registrada — não reflete mudanças feitas depois no Nexaas.
+                </p>
+                <ul className="space-y-1">
+                  {reclamacao.pedidoSnapshot.itens.map((item, idx) => (
+                    <li key={idx} className="text-sm text-base-900 flex justify-between gap-2">
+                      <span>
+                        {item.quantidade}× {item.nome}
+                      </span>
+                      {item.valorUnitario != null && (
+                        <span className="text-base-800 font-mono shrink-0">
+                          R$ {item.valorUnitario.toFixed(2)}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {(reclamacao.pedidoSnapshot.frete != null ||
+                  reclamacao.pedidoSnapshot.desconto != null) && (
+                  <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
+                    {reclamacao.pedidoSnapshot.frete != null && (
+                      <p className="text-xs text-base-800 flex justify-between">
+                        <span>Frete</span>
+                        <span className="font-mono">
+                          R$ {reclamacao.pedidoSnapshot.frete.toFixed(2)}
+                        </span>
+                      </p>
+                    )}
+                    {reclamacao.pedidoSnapshot.desconto != null &&
+                      reclamacao.pedidoSnapshot.desconto > 0 && (
+                        <p className="text-xs text-base-800 flex justify-between">
+                          <span>Desconto</span>
+                          <span className="font-mono">
+                            - R$ {reclamacao.pedidoSnapshot.desconto.toFixed(2)}
+                          </span>
+                        </p>
+                      )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <PainelResolucaoCusto
               reclamacao={reclamacao}
               onAtualizado={(atualizado) => setReclamacao(atualizado)}

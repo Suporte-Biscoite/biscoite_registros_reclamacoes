@@ -52,6 +52,10 @@ model Reclamacao {
   criadoEm            DateTime          @default(now())
   atualizadoEm        DateTime          @updatedAt
 
+  // Retrato do pedido no momento da reclamação (itens, frete, desconto) —
+  // preservado mesmo que o pedido mude depois no Nexaas.
+  pedidoSnapshot      Json?
+
   historico           HistoricoStatus[]
   anexos              Anexo[]
 

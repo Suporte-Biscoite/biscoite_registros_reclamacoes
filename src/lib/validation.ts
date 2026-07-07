@@ -20,7 +20,8 @@ export const criarReclamacaoSchema = z.object({
 
   resolucaoAplicada: z.string().optional().nullable(),
   valorGastoResolucao: z.number().optional().nullable(),
-  responsavel: z.string().optional().nullable()
+  responsavel: z.string().optional().nullable(),
+  pedidoSnapshot: z.any().optional().nullable()
 }).refine(
   (data) => Boolean(data.cpf) || Boolean(data.telefone) || Boolean(data.email),
   {
