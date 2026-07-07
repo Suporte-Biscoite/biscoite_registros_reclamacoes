@@ -65,6 +65,11 @@ export function ComplaintForm() {
   const [pedidoSnapshot, setPedidoSnapshot] = useState<PedidoEncontrado | null>(null);
   const [lojasDisponiveis, setLojasDisponiveis] = useState<string[]>([]);
   const [lojasFonteLocal, setLojasFonteLocal] = useState(false);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+  const [mensagemBuscaCliente, setMensagemBuscaCliente] = useState<{
+    tipo: "sucesso" | "erro";
+    texto: string;
+  } | null>(null);
 
   useEffect(() => {
     async function carregarLojas() {
@@ -111,6 +116,59 @@ export function ComplaintForm() {
     setMostrarFormulario(true);
   }
 
+  async function handleBuscarCliente() {
+    const cpfDigitado = form.cpf.trim();
+    if (!cpfDigitado) {
+      setMensagemBuscaCliente({ tipo: "erro", texto: "Digite o CPF antes de buscar." });
+      return;
+    }
+
+    setBuscandoCliente(true);
+    setMensagemBuscaCliente(null);
+    try {
+      const res = await fetch(
+        `/api/pedidos/buscar?tipo=cpf&valor=${encodeURIComponent(cpfDigitado)}`
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMensagemBuscaCliente({
+          tipo: "erro",
+          texto: data.error ?? "Não foi possível buscar esse CPF agora."
+        });
+        return;
+      }
+
+      const resultados: PedidoEncontrado[] = data.resultados ?? [];
+      if (resultados.length === 0) {
+        setMensagemBuscaCliente({
+          tipo: "erro",
+          texto: "Nenhuma compra encontrada para esse CPF. Preencha os dados manualmente."
+        });
+        return;
+      }
+
+      const maisRecente = resultados[0];
+      setForm((prev) => ({
+        ...prev,
+        nomeCliente: maisRecente.nomeCliente ?? prev.nomeCliente,
+        telefone: maisRecente.telefone ?? prev.telefone,
+        email: maisRecente.email ?? prev.email
+      }));
+      setMensagemBuscaCliente({
+        tipo: "sucesso",
+        texto: "Nome, telefone e e-mail preenchidos a partir de uma compra anterior. Revise antes de salvar."
+      });
+    } catch {
+      setMensagemBuscaCliente({
+        tipo: "erro",
+        texto: "Erro de conexão ao buscar os dados do cliente."
+      });
+    } finally {
+      setBuscandoCliente(false);
+    }
+  }
+
   function handleChange<K extends keyof FormState>(campo: K, valor: FormState[K]) {
     setForm((prev) => ({ ...prev, [campo]: valor }));
   }
@@ -131,6 +189,7 @@ export function ComplaintForm() {
       setCanalVendaOriginal(null);
       setNumeroPedidoEhIdNexaas(false);
       setPedidoSnapshot(null);
+      setMensagemBuscaCliente(null);
       setMostrarFormulario(true);
     } else {
       setMostrarFormulario(false);
@@ -402,12 +461,39 @@ export function ComplaintForm() {
             </Field>
 
             <Field label="CPF">
-              <input
-                type="text"
-                value={form.cpf}
-                onChange={(e) => handleChange("cpf", e.target.value)}
-                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.cpf}
+                  onChange={(e) => handleChange("cpf", e.target.value)}
+                  className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                />
+                {modo === "sem_pedido" && (
+                  <button
+                    type="button"
+                    onClick={handleBuscarCliente}
+                    disabled={buscandoCliente}
+                    className="focus-ring shrink-0 rounded-md border border-slate2-500 text-slate2-600 text-sm font-medium px-3 py-2 hover:bg-slate2-100 transition-colors disabled:opacity-60"
+                  >
+                    {buscandoCliente ? "Buscando..." : "Buscar dados"}
+                  </button>
+                )}
+              </div>
+              {mensagemBuscaCliente && (
+                <p
+                  className={`text-xs mt-1 ${
+                    mensagemBuscaCliente.tipo === "sucesso" ? "text-sage-600" : "text-brick-500"
+                  }`}
+                >
+                  {mensagemBuscaCliente.texto}
+                </p>
+              )}
+              {modo === "sem_pedido" && !mensagemBuscaCliente && (
+                <p className="text-xs text-base-800 mt-1">
+                  Digite o CPF e clique em "Buscar dados" para preencher nome, telefone e
+                  e-mail a partir de uma compra anterior do cliente (se houver).
+                </p>
+              )}
             </Field>
 
             <Field label="Telefone">
