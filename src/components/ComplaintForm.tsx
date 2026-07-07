@@ -234,28 +234,41 @@ export function ComplaintForm() {
                     </span>
                     {item.valorUnitario != null && (
                       <span className="text-base-800 font-mono shrink-0">
-                        R$ {item.valorUnitario.toFixed(2)}
+                        R$ {(item.valorUnitario * item.quantidade).toFixed(2)}
                       </span>
                     )}
                   </li>
                 ))}
               </ul>
-              {(pedidoSnapshot?.frete != null || pedidoSnapshot?.desconto != null) && (
-                <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
-                  {pedidoSnapshot?.frete != null && (
-                    <p className="text-xs text-base-800 flex justify-between">
-                      <span>Frete</span>
-                      <span className="font-mono">R$ {pedidoSnapshot.frete.toFixed(2)}</span>
-                    </p>
-                  )}
-                  {pedidoSnapshot?.desconto != null && pedidoSnapshot.desconto > 0 && (
-                    <p className="text-xs text-base-800 flex justify-between">
-                      <span>Desconto</span>
-                      <span className="font-mono">- R$ {pedidoSnapshot.desconto.toFixed(2)}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
+                <p className="text-sm font-medium text-base-900 flex justify-between">
+                  <span>Total dos itens</span>
+                  <span className="font-mono">
+                    R${" "}
+                    {itensPedido
+                      .reduce((soma, item) => soma + (item.valorUnitario ?? 0) * item.quantidade, 0)
+                      .toFixed(2)}
+                  </span>
+                </p>
+                {pedidoSnapshot?.desconto != null && pedidoSnapshot.desconto > 0 && (
+                  <p className="text-xs text-base-800 flex justify-between">
+                    <span>Desconto</span>
+                    <span className="font-mono">- R$ {pedidoSnapshot.desconto.toFixed(2)}</span>
+                  </p>
+                )}
+                {pedidoSnapshot?.frete != null && (
+                  <p className="text-xs text-base-800 flex justify-between">
+                    <span>Frete</span>
+                    <span className="font-mono">R$ {pedidoSnapshot.frete.toFixed(2)}</span>
+                  </p>
+                )}
+                {pedidoSnapshot?.valorPedido != null && (
+                  <p className="text-sm font-semibold text-base-900 flex justify-between border-t border-base-200 pt-1 mt-1">
+                    <span>Total do pedido</span>
+                    <span className="font-mono">R$ {pedidoSnapshot.valorPedido.toFixed(2)}</span>
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

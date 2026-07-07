@@ -124,34 +124,51 @@ export default function DetalheReclamacaoPage() {
                       </span>
                       {item.valorUnitario != null && (
                         <span className="text-base-800 font-mono shrink-0">
-                          R$ {item.valorUnitario.toFixed(2)}
+                          R$ {(item.valorUnitario * item.quantidade).toFixed(2)}
                         </span>
                       )}
                     </li>
                   ))}
                 </ul>
-                {(reclamacao.pedidoSnapshot.frete != null ||
-                  reclamacao.pedidoSnapshot.desconto != null) && (
-                  <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
-                    {reclamacao.pedidoSnapshot.frete != null && (
+                <div className="mt-2 pt-2 border-t border-base-200 space-y-0.5">
+                  <p className="text-sm font-medium text-base-900 flex justify-between">
+                    <span>Total dos itens</span>
+                    <span className="font-mono">
+                      R${" "}
+                      {reclamacao.pedidoSnapshot.itens
+                        .reduce(
+                          (soma, item) => soma + (item.valorUnitario ?? 0) * item.quantidade,
+                          0
+                        )
+                        .toFixed(2)}
+                    </span>
+                  </p>
+                  {reclamacao.pedidoSnapshot.desconto != null &&
+                    reclamacao.pedidoSnapshot.desconto > 0 && (
                       <p className="text-xs text-base-800 flex justify-between">
-                        <span>Frete</span>
+                        <span>Desconto</span>
                         <span className="font-mono">
-                          R$ {reclamacao.pedidoSnapshot.frete.toFixed(2)}
+                          - R$ {reclamacao.pedidoSnapshot.desconto.toFixed(2)}
                         </span>
                       </p>
                     )}
-                    {reclamacao.pedidoSnapshot.desconto != null &&
-                      reclamacao.pedidoSnapshot.desconto > 0 && (
-                        <p className="text-xs text-base-800 flex justify-between">
-                          <span>Desconto</span>
-                          <span className="font-mono">
-                            - R$ {reclamacao.pedidoSnapshot.desconto.toFixed(2)}
-                          </span>
-                        </p>
-                      )}
-                  </div>
-                )}
+                  {reclamacao.pedidoSnapshot.frete != null && (
+                    <p className="text-xs text-base-800 flex justify-between">
+                      <span>Frete</span>
+                      <span className="font-mono">
+                        R$ {reclamacao.pedidoSnapshot.frete.toFixed(2)}
+                      </span>
+                    </p>
+                  )}
+                  {reclamacao.pedidoSnapshot.valorPedido != null && (
+                    <p className="text-sm font-semibold text-base-900 flex justify-between border-t border-base-200 pt-1 mt-1">
+                      <span>Total do pedido</span>
+                      <span className="font-mono">
+                        R$ {reclamacao.pedidoSnapshot.valorPedido.toFixed(2)}
+                      </span>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
