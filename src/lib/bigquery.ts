@@ -201,15 +201,23 @@ function parseItens(itensJson: string | null): ItemPedido[] {
   try {
     const bruto = JSON.parse(itensJson);
     if (!Array.isArray(bruto)) return [];
-    return bruto.map((item: any) => ({
-      nome:
-        item?.product_sku?.description ??
-        item?.product_sku?.name ??
-        item?.additional_description ??
-        "Item sem nome",
-      quantidade: Number(item?.quantity ?? 1),
-      valorUnitario: item?.unit_price != null ? Number(item.unit_price) : null
-    }));
+    return bruto
+      // Quando o pedido tem um Kit, a Nexaas grava uma linha "embrulho" com o
+      // valor somado do Kit inteiro (is_kit: true) E as linhas dos itens
+      // individuais que compõem o Kit, separadamente. Sem esse filtro, os
+      // itens do Kit são contados duas vezes (uma no embrulho, outra
+      // individualmente) — a própria tela da Nexaas também esconde essa
+      // linha "embrulho" e mostra só os itens reais.
+      .filter((item: any) => item?.is_kit !== true)
+      .map((item: any) => ({
+        nome:
+          item?.product_sku?.description ??
+          item?.product_sku?.name ??
+          item?.additional_description ??
+          "Item sem nome",
+        quantidade: Number(item?.quantity ?? 1),
+        valorUnitario: item?.unit_price != null ? Number(item.unit_price) : null
+      }));
   } catch {
     return [];
   }
