@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OrderSearch } from "@/components/OrderSearch";
 import {
@@ -63,6 +63,23 @@ export function ComplaintForm() {
   const [canalVendaOriginal, setCanalVendaOriginal] = useState<string | null>(null);
   const [numeroPedidoEhIdNexaas, setNumeroPedidoEhIdNexaas] = useState(false);
   const [pedidoSnapshot, setPedidoSnapshot] = useState<PedidoEncontrado | null>(null);
+  const [lojasDisponiveis, setLojasDisponiveis] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function carregarLojas() {
+      try {
+        const res = await fetch("/api/lojas");
+        const data = await res.json();
+        if (res.ok) {
+          setLojasDisponiveis(data.lojas ?? []);
+        }
+      } catch {
+        // Se a lista de lojas falhar, o campo de "sem pedido" cai para texto
+        // livre — não trava o cadastro.
+      }
+    }
+    carregarLojas();
+  }, []);
 
   const submotivos = useMemo(
     () => (form.motivo ? TAXONOMIA[form.motivo] ?? [] : []),
@@ -297,13 +314,29 @@ export function ComplaintForm() {
             </Field>
 
             <Field label="Loja ou CD de origem" required>
-              <input
-                required
-                type="text"
-                value={form.lojaOuCd}
-                onChange={(e) => handleChange("lojaOuCd", e.target.value)}
-                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
-              />
+              {modo === "sem_pedido" ? (
+                <select
+                  required
+                  value={form.lojaOuCd}
+                  onChange={(e) => handleChange("lojaOuCd", e.target.value)}
+                  className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione</option>
+                  {lojasDisponiveis.map((loja) => (
+                    <option key={loja} value={loja}>
+                      {loja}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  required
+                  type="text"
+                  value={form.lojaOuCd}
+                  onChange={(e) => handleChange("lojaOuCd", e.target.value)}
+                  className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                />
+              )}
             </Field>
 
             {modo === "com_pedido" && (

@@ -46,10 +46,33 @@ interface Estatisticas {
     totalResolvidas: number;
     percentualResolvidas: number;
     valorTotalGasto: number;
-    custoMedioPorReclamacao: number;
     tempoMedioResolucaoDias: number | null;
   };
 }
+
+interface OpcoesFiltro {
+  canais: string[];
+  lojas: string[];
+  motivos: string[];
+  submotivos: string[];
+  resolucoes: string[];
+}
+
+interface Filtros {
+  canalVenda: string;
+  loja: string;
+  motivo: string;
+  submotivo: string;
+  resolucaoAplicada: string;
+}
+
+const FILTROS_VAZIOS: Filtros = {
+  canalVenda: "",
+  loja: "",
+  motivo: "",
+  submotivo: "",
+  resolucaoAplicada: ""
+};
 
 function formatarPeriodo(periodo: string): string {
   const [ano, mes] = periodo.split("-");
@@ -85,6 +108,24 @@ export function Dashboard() {
   const [dados, setDados] = useState<Estatisticas | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [opcoesFiltro, setOpcoesFiltro] = useState<OpcoesFiltro | null>(null);
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
+
+  useEffect(() => {
+    async function carregarOpcoes() {
+      try {
+        const res = await fetch("/api/filtros");
+        const data = await res.json();
+        if (res.ok) {
+          setOpcoesFiltro(data);
+        }
+      } catch {
+        // Se as opções de filtro falharem, os dropdowns ficam vazios, mas o
+        // resto do dashboard continua funcionando normalmente.
+      }
+    }
+    carregarOpcoes();
+  }, []);
 
   useEffect(() => {
     async function carregar() {
@@ -97,6 +138,12 @@ export function Dashboard() {
         } else {
           params.set("meses", String(meses));
         }
+
+        if (filtros.canalVenda) params.set("canalVenda", filtros.canalVenda);
+        if (filtros.loja) params.set("loja", filtros.loja);
+        if (filtros.motivo) params.set("motivo", filtros.motivo);
+        if (filtros.submotivo) params.set("submotivo", filtros.submotivo);
+        if (filtros.resolucaoAplicada) params.set("resolucaoAplicada", filtros.resolucaoAplicada);
 
         const res = await fetch(`/api/estatisticas?${params.toString()}`);
         const data = await res.json();
@@ -118,7 +165,7 @@ export function Dashboard() {
     } else {
       setCarregando(false);
     }
-  }, [meses, modoPeriodo, filtroAplicado]);
+  }, [meses, modoPeriodo, filtroAplicado, filtros]);
 
   function handleAplicarPersonalizado() {
     if (!dataInicio || !dataFim) {
@@ -132,6 +179,12 @@ export function Dashboard() {
     setErro(null);
     setFiltroAplicado({ dataInicio, dataFim });
   }
+
+  function handleFiltroChange(campo: keyof Filtros, valor: string) {
+    setFiltros((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  const filtrosAtivos = Object.values(filtros).some((v) => v !== "");
 
   return (
     <div className="space-y-6">
@@ -192,6 +245,52 @@ export function Dashboard() {
         </div>
       </div>
 
+      <div className="bg-white border border-base-200 rounded-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-base-800">Filtros</p>
+          {filtrosAtivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VAZIOS)}
+              className="focus-ring text-xs text-slate2-600 underline"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <FiltroSelect
+            label="Canal de venda"
+            value={filtros.canalVenda}
+            opcoes={opcoesFiltro?.canais ?? []}
+            onChange={(v) => handleFiltroChange("canalVenda", v)}
+          />
+          <FiltroSelect
+            label="Loja"
+            value={filtros.loja}
+            opcoes={opcoesFiltro?.lojas ?? []}
+            onChange={(v) => handleFiltroChange("loja", v)}
+          />
+          <FiltroSelect
+            label="Motivo"
+            value={filtros.motivo}
+            opcoes={opcoesFiltro?.motivos ?? []}
+            onChange={(v) => handleFiltroChange("motivo", v)}
+          />
+          <FiltroSelect
+            label="Submotivo"
+            value={filtros.submotivo}
+            opcoes={opcoesFiltro?.submotivos ?? []}
+            onChange={(v) => handleFiltroChange("submotivo", v)}
+          />
+          <FiltroSelect
+            label="Resolução aplicada"
+            value={filtros.resolucaoAplicada}
+            opcoes={opcoesFiltro?.resolucoes ?? []}
+            onChange={(v) => handleFiltroChange("resolucaoAplicada", v)}
+          />
+        </div>
+      </div>
+
       {erro && <p className="text-sm text-brick-500">{erro}</p>}
       {carregando && <p className="text-sm text-base-800">Carregando...</p>}
       {modoPeriodo === "personalizado" && !filtroAplicado && !erro && (
@@ -202,7 +301,7 @@ export function Dashboard() {
 
       {dados && !carregando && (modoPeriodo === "relativo" || filtroAplicado) && (
         <>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard
               label="Reclamações no período"
               valor={String(dados.kpis.totalReclamacoes)}
@@ -223,10 +322,6 @@ export function Dashboard() {
             <KpiCard
               label="Valor total gasto"
               valor={formatarReais(dados.kpis.valorTotalGasto)}
-            />
-            <KpiCard
-              label="Custo médio por caso"
-              valor={formatarReais(dados.kpis.custoMedioPorReclamacao)}
             />
           </div>
 
@@ -370,6 +465,36 @@ export function Dashboard() {
         </>
       )}
     </div>
+  );
+}
+
+function FiltroSelect({
+  label,
+  value,
+  opcoes,
+  onChange
+}: {
+  label: string;
+  value: string;
+  opcoes: string[];
+  onChange: (valor: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-base-800 mb-1">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="focus-ring w-full rounded-md border border-base-300 px-2 py-1.5 text-sm bg-white"
+      >
+        <option value="">Todos</option>
+        {opcoes.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
