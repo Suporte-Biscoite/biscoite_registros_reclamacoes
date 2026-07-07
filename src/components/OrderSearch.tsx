@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PedidoEncontrado, TipoBusca } from "@/lib/bigquery";
+import { formatarDataHoraPedido } from "@/lib/format";
 
 interface OrderSearchProps {
   onPedidoSelecionado: (pedido: PedidoEncontrado) => void;
@@ -126,7 +127,10 @@ export function OrderSearch({ onPedidoSelecionado, onBuscaManual }: OrderSearchP
                     #{pedido.numeroPedido ?? pedido.idPedidoNexaas}
                   </span>
                 </p>
-                <p className="text-xs text-base-800">
+                <p className="text-xs text-caramel-600 font-medium mt-0.5">
+                  Feito em {formatarDataHoraPedido(pedido.dataPedido)}
+                </p>
+                <p className="text-xs text-base-800 mt-0.5">
                   {pedido.canalVenda ?? "—"} · {pedido.lojaOuCd ?? "—"} ·{" "}
                   {pedido.valorPedido != null
                     ? `R$ ${pedido.valorPedido.toFixed(2)}`
