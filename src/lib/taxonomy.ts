@@ -24,6 +24,12 @@ export const TAXONOMIA: Record<string, string[]> = {
     "Atendimento em loja",
     "Atendimento via SAC"
   ],
+  "Infraestrutura": [
+    "Estrutura física da loja",
+    "Limpeza/higiene",
+    "Equipamento com defeito",
+    "Outros problemas de infraestrutura"
+  ],
   "Grave": [
     "Contaminação",
     "Objeto estranho no produto",

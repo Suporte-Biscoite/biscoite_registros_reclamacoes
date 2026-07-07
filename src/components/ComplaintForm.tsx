@@ -54,6 +54,7 @@ const ESTADO_INICIAL: FormState = {
 
 export function ComplaintForm() {
   const router = useRouter();
+  const [modo, setModo] = useState<"com_pedido" | "sem_pedido">("com_pedido");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [form, setForm] = useState<FormState>(ESTADO_INICIAL);
   const [erro, setErro] = useState<string | null>(null);
@@ -91,6 +92,27 @@ export function ComplaintForm() {
 
   function handleChange<K extends keyof FormState>(campo: K, valor: FormState[K]) {
     setForm((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  function handleTrocarModo(novoModo: "com_pedido" | "sem_pedido") {
+    setModo(novoModo);
+    setErro(null);
+    if (novoModo === "sem_pedido") {
+      setForm((prev) => ({
+        ...prev,
+        numeroPedido: "",
+        idPedidoNexaas: "",
+        dataPedido: "",
+        valorPedido: "",
+        pedidoLocalizado: false
+      }));
+      setItensPedido([]);
+      setCanalVendaOriginal(null);
+      setNumeroPedidoEhIdNexaas(false);
+      setMostrarFormulario(true);
+    } else {
+      setMostrarFormulario(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -145,10 +167,44 @@ export function ComplaintForm() {
 
   return (
     <div className="space-y-6">
-      <OrderSearch
-        onPedidoSelecionado={preencherComPedido}
-        onBuscaManual={() => setMostrarFormulario(true)}
-      />
+      <div className="flex gap-2 border-b border-base-200 pb-4">
+        <button
+          type="button"
+          onClick={() => handleTrocarModo("com_pedido")}
+          className={`focus-ring text-sm px-3 py-1.5 rounded-md transition-colors ${
+            modo === "com_pedido"
+              ? "bg-caramel-500 text-white"
+              : "text-base-800 hover:bg-base-100"
+          }`}
+        >
+          Vinculada a um pedido
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTrocarModo("sem_pedido")}
+          className={`focus-ring text-sm px-3 py-1.5 rounded-md transition-colors ${
+            modo === "sem_pedido"
+              ? "bg-caramel-500 text-white"
+              : "text-base-800 hover:bg-base-100"
+          }`}
+        >
+          Sem pedido (atendimento, loja, infraestrutura)
+        </button>
+      </div>
+
+      {modo === "com_pedido" && (
+        <OrderSearch
+          onPedidoSelecionado={preencherComPedido}
+          onBuscaManual={() => setMostrarFormulario(true)}
+        />
+      )}
+
+      {modo === "sem_pedido" && (
+        <p className="text-xs text-base-800">
+          Use esta opção para reclamações que não se referem a um pedido específico —
+          atendimento em loja, infraestrutura, limpeza, etc.
+        </p>
+      )}
 
       {mostrarFormulario && (
         <form
@@ -217,39 +273,43 @@ export function ComplaintForm() {
               />
             </Field>
 
-            <Field label="Número do pedido">
-              <input
-                type="text"
-                value={form.numeroPedido}
-                onChange={(e) => handleChange("numeroPedido", e.target.value)}
-                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm font-mono"
-              />
-              {numeroPedidoEhIdNexaas && (
-                <p className="text-xs text-slate2-600 mt-1">
-                  Este pedido não tem código externo (comum em vendas de loja física) —
-                  usando o ID interno da Nexaas.
-                </p>
-              )}
-            </Field>
+            {modo === "com_pedido" && (
+              <>
+                <Field label="Número do pedido">
+                  <input
+                    type="text"
+                    value={form.numeroPedido}
+                    onChange={(e) => handleChange("numeroPedido", e.target.value)}
+                    className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm font-mono"
+                  />
+                  {numeroPedidoEhIdNexaas && (
+                    <p className="text-xs text-slate2-600 mt-1">
+                      Este pedido não tem código externo (comum em vendas de loja física) —
+                      usando o ID interno da Nexaas.
+                    </p>
+                  )}
+                </Field>
 
-            <Field label="Data do pedido">
-              <input
-                type="date"
-                value={form.dataPedido}
-                onChange={(e) => handleChange("dataPedido", e.target.value)}
-                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
-              />
-            </Field>
+                <Field label="Data do pedido">
+                  <input
+                    type="date"
+                    value={form.dataPedido}
+                    onChange={(e) => handleChange("dataPedido", e.target.value)}
+                    className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                  />
+                </Field>
 
-            <Field label="Valor do pedido (R$)">
-              <input
-                type="number"
-                step="0.01"
-                value={form.valorPedido}
-                onChange={(e) => handleChange("valorPedido", e.target.value)}
-                className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
-              />
-            </Field>
+                <Field label="Valor do pedido (R$)">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.valorPedido}
+                    onChange={(e) => handleChange("valorPedido", e.target.value)}
+                    className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                  />
+                </Field>
+              </>
+            )}
           </div>
 
           <hr className="border-base-200" />
