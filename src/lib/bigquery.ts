@@ -67,6 +67,41 @@ function variacoesTelefone(valor: string): string[] {
 
 export type TipoBusca = "numero_pedido" | "telefone" | "cpf";
 
+// Cache simples em memória — evita bater no BigQuery a cada carregamento do
+// formulário. A lista de lojas muda raramente, então algumas horas de cache
+// são seguras.
+let lojasCache: { lojas: string[]; expiraEm: number } | null = null;
+const LOJAS_CACHE_DURACAO_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+export async function buscarLojasNexaas(): Promise<string[]> {
+  if (lojasCache && lojasCache.expiraEm > Date.now()) {
+    return lojasCache.lojas;
+  }
+
+  const client = getBigQueryClient();
+  const tabela = process.env.BIGQUERY_TABLE ??
+    "igneous-ethos-444918-p4.BISCOITE.biscoite_bronze";
+
+  // Limitado aos últimos 90 dias: evita escanear a tabela inteira (custo/
+  // tempo) e ainda cobre qualquer loja com movimento recente.
+  const query = `
+    SELECT DISTINCT JSON_VALUE(payload, '$.organization_name') AS loja
+    FROM \`${tabela}\`
+    WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+      AND JSON_VALUE(payload, '$.organization_name') IS NOT NULL
+    ORDER BY loja
+  `;
+
+  const [rows] = await client.query({
+    query,
+    location: process.env.BIGQUERY_LOCATION ?? "US"
+  });
+
+  const lojas = rows.map((row: any) => row.loja).filter(Boolean);
+  lojasCache = { lojas, expiraEm: Date.now() + LOJAS_CACHE_DURACAO_MS };
+  return lojas;
+}
+
 export async function buscarPedido(
   tipo: TipoBusca,
   valor: string

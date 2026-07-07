@@ -64,6 +64,7 @@ export function ComplaintForm() {
   const [numeroPedidoEhIdNexaas, setNumeroPedidoEhIdNexaas] = useState(false);
   const [pedidoSnapshot, setPedidoSnapshot] = useState<PedidoEncontrado | null>(null);
   const [lojasDisponiveis, setLojasDisponiveis] = useState<string[]>([]);
+  const [lojasFonteLocal, setLojasFonteLocal] = useState(false);
 
   useEffect(() => {
     async function carregarLojas() {
@@ -72,6 +73,7 @@ export function ComplaintForm() {
         const data = await res.json();
         if (res.ok) {
           setLojasDisponiveis(data.lojas ?? []);
+          setLojasFonteLocal(data.fonte === "local");
         }
       } catch {
         // Se a lista de lojas falhar, o campo de "sem pedido" cai para texto
@@ -315,19 +317,27 @@ export function ComplaintForm() {
 
             <Field label="Loja ou CD de origem" required>
               {modo === "sem_pedido" ? (
-                <select
-                  required
-                  value={form.lojaOuCd}
-                  onChange={(e) => handleChange("lojaOuCd", e.target.value)}
-                  className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Selecione</option>
-                  {lojasDisponiveis.map((loja) => (
-                    <option key={loja} value={loja}>
-                      {loja}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    required
+                    value={form.lojaOuCd}
+                    onChange={(e) => handleChange("lojaOuCd", e.target.value)}
+                    className="focus-ring w-full rounded-md border border-base-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione</option>
+                    {lojasDisponiveis.map((loja) => (
+                      <option key={loja} value={loja}>
+                        {loja}
+                      </option>
+                    ))}
+                  </select>
+                  {lojasFonteLocal && (
+                    <p className="text-xs text-slate2-600 mt-1">
+                      Não foi possível consultar a lista atualizada da Nexaas agora —
+                      mostrando uma lista de reserva, que pode estar desatualizada.
+                    </p>
+                  )}
+                </>
               ) : (
                 <input
                   required
