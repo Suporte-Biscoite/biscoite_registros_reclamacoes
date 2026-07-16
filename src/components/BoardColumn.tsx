@@ -17,20 +17,20 @@ export function BoardColumn({ status, label, reclamacoes, onExcluir }: BoardColu
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-card border border-base-200 bg-base-100/60 min-w-[260px] w-[260px] shrink-0 ${
+      className={`flex flex-col rounded-card border border-base-200 bg-base-100/60 min-w-0 ${
         isOver ? "ring-2 ring-caramel-400" : ""
       }`}
     >
-      <div className="ticket-edge px-3 py-2.5 bg-white rounded-t-card">
-        <p className="text-sm font-medium text-base-900">{label}</p>
-        <p className="text-xs text-base-800">{reclamacoes.length} caso(s)</p>
+      <div className="ticket-edge px-2.5 py-2 bg-white rounded-t-card">
+        <p className="text-xs font-medium text-base-900 truncate">{label}</p>
+        <p className="text-[11px] text-base-800">{reclamacoes.length} caso(s)</p>
       </div>
-      <div className="flex-1 p-2 space-y-2 min-h-[200px]">
+      <div className="flex-1 p-1.5 space-y-1.5 overflow-y-auto max-h-[65vh]">
         {reclamacoes.map((r) => (
           <ComplaintCard key={r.id} reclamacao={r} onExcluir={onExcluir} />
         ))}
         {reclamacoes.length === 0 && (
-          <p className="text-xs text-base-800 text-center py-6">
+          <p className="text-[11px] text-base-800 text-center py-6 px-1">
             Nenhum caso nesta coluna.
           </p>
         )}

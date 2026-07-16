@@ -22,7 +22,7 @@ export function Header() {
 
   return (
     <header className="border-b border-base-200 bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+      <div className="mx-auto max-w-[1400px] px-4 py-3 flex items-center justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-caramel-500 font-medium leading-none">
             Biscoitê
