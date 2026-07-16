@@ -19,6 +19,23 @@ import {
 import { STATUS_LABELS } from "@/lib/taxonomy";
 import { corPorIndice } from "@/lib/chartColors";
 
+function truncarTexto(texto: string, max = 22): string {
+  return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+}
+
+// Rótulo customizado do eixo Y: sem isso, o Recharts quebra nomes longos em
+// várias linhas automaticamente, e como cada categoria tem uma faixa de
+// altura fixa, as linhas extras acabam invadindo a barra vizinha. Aqui
+// truncamos para uma linha só — o nome completo continua aparecendo ao
+// passar o mouse sobre a barra (tooltip usa o valor original, não truncado).
+function RotuloCategoria({ x, y, payload }: any) {
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill="#3A372F">
+      {truncarTexto(String(payload.value))}
+    </text>
+  );
+}
+
 interface CategoriaItem {
   categoria: string;
   quantidade: number;
@@ -371,7 +388,7 @@ export function Dashboard() {
             </ChartCard>
 
             <ChartCard title="Principais motivos de reclamação">
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={Math.max(220, dados.porMotivo.length * 42)}>
                 <BarChart data={dados.porMotivo} layout="vertical" margin={{ left: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E7E6E2" />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#3A372F" }} />
@@ -379,7 +396,7 @@ export function Dashboard() {
                     type="category"
                     dataKey="categoria"
                     width={140}
-                    tick={{ fontSize: 12, fill: "#3A372F" }}
+                    tick={<RotuloCategoria />}
                   />
                   <Tooltip formatter={(v: number) => [v, "Reclamações"]} />
                   <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
@@ -392,7 +409,7 @@ export function Dashboard() {
             </ChartCard>
 
             <ChartCard title="Lojas / CD com mais reclamações">
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={Math.max(220, dados.porLoja.length * 42)}>
                 <BarChart data={dados.porLoja} layout="vertical" margin={{ left: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E7E6E2" />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#3A372F" }} />
@@ -400,7 +417,7 @@ export function Dashboard() {
                     type="category"
                     dataKey="categoria"
                     width={140}
-                    tick={{ fontSize: 12, fill: "#3A372F" }}
+                    tick={<RotuloCategoria />}
                   />
                   <Tooltip formatter={(v: number) => [v, "Reclamações"]} />
                   <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
