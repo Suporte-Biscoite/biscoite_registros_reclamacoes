@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { BoardColumn } from "@/components/BoardColumn";
 import { STATUS_LABELS, STATUS_ORDEM } from "@/lib/taxonomy";
+import { filtrosParaQueryString, type FiltrosReclamacao } from "@/components/BoardFiltros";
 import type { Reclamacao, StatusReclamacao } from "@/lib/types";
 
-export function Board() {
+export function Board({ filtros }: { filtros: FiltrosReclamacao }) {
   const [reclamacoes, setReclamacoes] = useState<Reclamacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -20,7 +21,8 @@ export function Board() {
   async function carregar() {
     setCarregando(true);
     try {
-      const res = await fetch("/api/reclamacoes");
+      const query = filtrosParaQueryString(filtros);
+      const res = await fetch(`/api/reclamacoes${query ? `?${query}` : ""}`);
       const data = await res.json();
       setReclamacoes(data.reclamacoes ?? []);
       setErro(null);
@@ -32,8 +34,14 @@ export function Board() {
   }
 
   useEffect(() => {
-    carregar();
-  }, []);
+    // Pequeno debounce: evita disparar uma busca a cada tecla digitada no
+    // campo de nome/protocolo.
+    const timeout = setTimeout(() => {
+      carregar();
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros]);
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -76,6 +84,11 @@ export function Board() {
       {erro && (
         <p className="mb-4 text-sm text-brick-500" role="alert">
           {erro}
+        </p>
+      )}
+      {reclamacoes.length === 0 && (
+        <p className="mb-4 text-sm text-base-800">
+          Nenhuma reclamação encontrada com esses filtros.
         </p>
       )}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>

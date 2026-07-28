@@ -94,7 +94,8 @@ export async function buscarLojasNexaas(): Promise<string[]> {
 
   const [rows] = await client.query({
     query,
-    location: process.env.BIGQUERY_LOCATION ?? "US"
+    location: process.env.BIGQUERY_LOCATION ?? "US",
+    maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED ?? String(5 * 1024 ** 3)
   });
 
   const lojas = rows.map((row: any) => row.loja).filter(Boolean);
@@ -207,7 +208,11 @@ export async function buscarPedido(
     query,
     params,
     types,
-    location: process.env.BIGQUERY_LOCATION ?? "US"
+    location: process.env.BIGQUERY_LOCATION ?? "US",
+    // Trava de segurança: se a query tentar processar mais que esse limite,
+    // falha com erro em vez de gerar custo sem controle. Ajuste via env var
+    // conforme o tamanho real da tabela (veja BIGQUERY_CUSTOS.md).
+    maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED ?? String(5 * 1024 ** 3) // 5 GB padrão
   });
 
   if (process.env.NODE_ENV === "development") {

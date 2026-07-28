@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STATUS_LABELS } from "@/lib/taxonomy";
 import { formatarProtocolo } from "@/lib/format";
+import { filtrosParaQueryString, type FiltrosReclamacao } from "@/components/BoardFiltros";
 import type { Reclamacao } from "@/lib/types";
 
 const TAMANHO_PAGINA = 10;
 
-export function ComplaintTable() {
+export function ComplaintTable({ filtros }: { filtros: FiltrosReclamacao }) {
   const router = useRouter();
   const [pagina, setPagina] = useState(1);
   const [reclamacoes, setReclamacoes] = useState<Reclamacao[]>([]);
@@ -16,29 +17,41 @@ export function ComplaintTable() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Sempre que os filtros mudam, volta para a página 1 — senão a pessoa
+  // pode ficar "presa" numa página que não existe mais no resultado filtrado.
   useEffect(() => {
-    async function carregar() {
-      setCarregando(true);
-      try {
-        const res = await fetch(
-          `/api/reclamacoes?page=${pagina}&pageSize=${TAMANHO_PAGINA}`
-        );
-        const data = await res.json();
-        if (!res.ok) {
-          setErro("Não foi possível carregar a lista de reclamações.");
-          return;
+    setPagina(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      async function carregar() {
+        setCarregando(true);
+        try {
+          const query = filtrosParaQueryString(filtros);
+          const res = await fetch(
+            `/api/reclamacoes?page=${pagina}&pageSize=${TAMANHO_PAGINA}${query ? `&${query}` : ""}`
+          );
+          const data = await res.json();
+          if (!res.ok) {
+            setErro("Não foi possível carregar a lista de reclamações.");
+            return;
+          }
+          setReclamacoes(data.reclamacoes ?? []);
+          setTotal(data.total ?? 0);
+          setErro(null);
+        } catch {
+          setErro("Erro de conexão ao carregar a lista.");
+        } finally {
+          setCarregando(false);
         }
-        setReclamacoes(data.reclamacoes ?? []);
-        setTotal(data.total ?? 0);
-        setErro(null);
-      } catch {
-        setErro("Erro de conexão ao carregar a lista.");
-      } finally {
-        setCarregando(false);
       }
-    }
-    carregar();
-  }, [pagina]);
+      carregar();
+    }, 300);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagina, filtros]);
 
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANHO_PAGINA));
 
@@ -101,7 +114,7 @@ export function ComplaintTable() {
                 {reclamacoes.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-base-800">
-                      Nenhuma reclamação registrada ainda.
+                      Nenhuma reclamação encontrada com esses filtros.
                     </td>
                   </tr>
                 )}

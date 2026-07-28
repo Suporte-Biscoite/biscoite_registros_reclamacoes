@@ -1,15 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { criarReclamacaoSchema } from "@/lib/validation";
+
+function montarWhere(searchParams: URLSearchParams): Prisma.ReclamacaoWhereInput {
+  const busca = searchParams.get("busca")?.trim();
+  const canalVenda = searchParams.get("canalVenda") || undefined;
+  const loja = searchParams.get("loja") || undefined;
+  const motivo = searchParams.get("motivo") || undefined;
+  const submotivo = searchParams.get("submotivo") || undefined;
+  const resolucaoAplicada = searchParams.get("resolucaoAplicada") || undefined;
+
+  const where: Prisma.ReclamacaoWhereInput = {};
+  if (canalVenda) where.canalVenda = canalVenda;
+  if (loja) where.lojaOuCd = loja;
+  if (motivo) where.motivo = motivo;
+  if (submotivo) where.submotivo = submotivo;
+  if (resolucaoAplicada) where.resolucaoAplicada = resolucaoAplicada;
+
+  if (busca) {
+    const condicoesOr: Prisma.ReclamacaoWhereInput[] = [
+      { nomeCliente: { contains: busca, mode: "insensitive" } }
+    ];
+
+    // Se a busca tiver dígitos (ex: "17", "000017" ou "protocolo 17"),
+    // também tenta bater com o número do protocolo.
+    const digitos = busca.replace(/\D/g, "");
+    if (digitos.length > 0) {
+      const numeroProtocolo = Number(digitos);
+      if (Number.isFinite(numeroProtocolo)) {
+        condicoesOr.push({ numeroProtocolo });
+      }
+    }
+
+    where.OR = condicoesOr;
+  }
+
+  return where;
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const pageParam = searchParams.get("page");
+  const where = montarWhere(searchParams);
 
   // Sem "page": mantém o comportamento original (usado pelo board Kanban,
   // que precisa de todas as reclamações de uma vez para montar as colunas).
   if (!pageParam) {
     const reclamacoes = await prisma.reclamacao.findMany({
+      where,
       orderBy: { dataAbertura: "desc" }
     });
     return NextResponse.json({ reclamacoes });
@@ -21,11 +60,12 @@ export async function GET(request: NextRequest) {
 
   const [reclamacoes, total] = await Promise.all([
     prisma.reclamacao.findMany({
+      where,
       orderBy: { dataAbertura: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize
     }),
-    prisma.reclamacao.count()
+    prisma.reclamacao.count({ where })
   ]);
 
   return NextResponse.json({ reclamacoes, total, page, pageSize });
