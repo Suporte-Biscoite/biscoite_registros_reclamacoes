@@ -67,6 +67,15 @@ function variacoesTelefone(valor: string): string[] {
 
 export type TipoBusca = "numero_pedido" | "telefone" | "cpf";
 
+// Só aplicamos o limite de bytes billed se a pessoa configurar explicitamente
+// (depois de medir o tamanho real da tabela — veja BIGQUERY_CUSTOS.md). Sem
+// essa variável definida, a busca roda sem limite, como antes — um valor
+// padrão "chutado" quase certamente vai bloquear buscas legítimas em tabelas
+// grandes, e é pior travar o uso do sistema do que gerar custo sem esse teto.
+function limiteBytesBilled(): string | undefined {
+  return process.env.BIGQUERY_MAX_BYTES_BILLED || undefined;
+}
+
 // Cache simples em memória — evita bater no BigQuery a cada carregamento do
 // formulário. A lista de lojas muda raramente, então algumas horas de cache
 // são seguras.
@@ -95,7 +104,7 @@ export async function buscarLojasNexaas(): Promise<string[]> {
   const [rows] = await client.query({
     query,
     location: process.env.BIGQUERY_LOCATION ?? "US",
-    maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED ?? String(5 * 1024 ** 3)
+    ...(limiteBytesBilled() ? { maximumBytesBilled: limiteBytesBilled() } : {})
   });
 
   const lojas = rows.map((row: any) => row.loja).filter(Boolean);
@@ -209,10 +218,10 @@ export async function buscarPedido(
     params,
     types,
     location: process.env.BIGQUERY_LOCATION ?? "US",
-    // Trava de segurança: se a query tentar processar mais que esse limite,
-    // falha com erro em vez de gerar custo sem controle. Ajuste via env var
-    // conforme o tamanho real da tabela (veja BIGQUERY_CUSTOS.md).
-    maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED ?? String(5 * 1024 ** 3) // 5 GB padrão
+    // Trava de segurança OPCIONAL: só entra em vigor se BIGQUERY_MAX_BYTES_BILLED
+    // estiver configurado no .env (veja BIGQUERY_CUSTOS.md para medir o valor
+    // certo). Sem essa variável, roda sem limite.
+    ...(limiteBytesBilled() ? { maximumBytesBilled: limiteBytesBilled() } : {})
   });
 
   if (process.env.NODE_ENV === "development") {
